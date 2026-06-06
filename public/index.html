@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Praxo Referral Tool</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+.container { max-width: 520px; margin: 0 auto; padding: 20px; }
+.header { text-align: center; padding: 30px 0 20px; }
+.header h1 { font-size: 24px; color: #fff; }
+.header p { color: #999; font-size: 14px; margin-top: 5px; }
+.card { background: #1a1a2e; border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 1px solid #2a2a4a; }
+.card h2 { font-size: 16px; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card h2 .step { background: #6c5ce7; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 5px; }
+.form-group input, .form-group select { width: 100%; padding: 11px 14px; background: #252542; border: 1px solid #333355; border-radius: 10px; color: #fff; font-size: 14px; outline: none; transition: 0.2s; }
+.form-group input:focus, .form-group select:focus { border-color: #6c5ce7; }
+.form-group input::placeholder { color: #666; }
+.form-group input[readonly] { background: #1e1e38; color: #888; }
+.btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-primary { background: #6c5ce7; color: #fff; }
+.btn-primary:hover { background: #5a4bd1; }
+.btn-primary:disabled { background: #444; cursor: not-allowed; }
+.btn-success { background: #00b894; color: #fff; }
+.btn-success:hover { background: #00a381; }
+.btn-danger { background: #d63031; color: #fff; }
+.btn-danger:hover { background: #c0392b; }
+.log { background: #12121e; border-radius: 10px; padding: 14px; font-family: monospace; font-size: 12px; max-height: 250px; overflow-y: auto; margin-top: 14px; }
+.log p { padding: 3px 0; border-bottom: 1px solid #1a1a2e; }
+.log .ok { color: #00b894; }
+.log .err { color: #d63031; }
+.log .info { color: #74b9ff; }
+.log .warn { color: #fdcb6e; }
+.hidden { display: none; }
+.generated-info { background: #1a1a3e; border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 13px; border-left: 3px solid #6c5ce7; }
+.generated-info span { color: #6c5ce7; font-weight: 600; }
+.footer { text-align: center; padding: 20px; color: #555; font-size: 12px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+.badge-success { background: #00b89433; color: #00b894; }
+.badge-pending { background: #fdcb6e33; color: #fdcb6e; }
+@media (max-width: 480px) { .container { padding: 12px; } .card { padding: 16px; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🚀 Praxo Referral Tool</h1>
+    <p>Auto-signup with referral code — bas OTP daalna hai</p>
+  </div>
+
+  <!-- Step 1: Referral + Mobile -->
+  <div class="card" id="step1">
+    <h2><span class="step">1</span> Referral Link &amp; Mobile</h2>
+    <div class="form-group">
+      <label>🔗 Referral Code ya Link</label>
+      <input type="text" id="referralInput" placeholder="e.g. ABCD12 ya https://thepraxo.page.link/...">
+    </div>
+    <div class="form-group">
+      <label>📱 Mobile Number (India)</label>
+      <input type="tel" id="mobileInput" placeholder="e.g. 9876543210" maxlength="10">
+    </div>
+    <div class="generated-info" id="generatedInfo" style="display:none">
+      <span id="genName"></span> · <span id="genUsername"></span> · <span id="genDob"></span> · <span id="genGender"></span>
+    </div>
+    <button class="btn btn-primary" id="btnSendOtp" onclick="sendOtp()">📨 OTP Bhejo</button>
+    <div class="log" id="log1"></div>
+  </div>
+
+  <!-- Step 2: Verify OTP -->
+  <div class="card hidden" id="step2">
+    <h2><span class="step">2</span> OTP Verify</h2>
+    <div class="form-group">
+      <label>🔢 OTP Code</label>
+      <input type="text" id="otpInput" placeholder="6-digit OTP" maxlength="6" inputmode="numeric">
+    </div>
+    <button class="btn btn-success" id="btnVerifyOtp" onclick="verifyOtp()">✅ OTP Verify Karein</button>
+    <button class="btn btn-danger" id="btnResendOtp" onclick="resendOtp()" style="margin-top:8px;background:#444">🔄 Resend OTP</button>
+    <div class="log" id="log2"></div>
+  </div>
+
+  <!-- Step 3: Results -->
+  <div class="card hidden" id="step3">
+    <h2><span class="step">3</span> ✅ Signup Complete!</h2>
+    <div id="resultInfo" class="generated-info"></div>
+    <div class="log" id="log3"></div>
+  </div>
+</div>
+
+<div class="footer">Made with ❤️ · GitHub Deploy</div>
+
+<script>
+let state = {
+  jwtToken: null,
+  referralCode: '',
+  mobile: '',
+  fullName: '',
+  userName: '',
+  dateOfBirth: '',
+  gender: '',
+  refreshToken: null,
+  referralRewardCode: null,
+};
+
+const FIRST = ['Ram','Shyam','Amit','Ravi','Vijay','Mohan','Rohan','Arjun','Karan','Rahul','Ankit','Nikhil','Deepak','Manish','Rajesh','Suresh','Ashok','Harish','Kamal','Lalit','Mukesh','Naveen','Pankaj','Ramesh','Sandeep','Tarun','Vikas','Yash','Aakash','Rajat','Sachin','Sunil','Gopal','Lokesh','Umang'];
+const LAST = ['Kumar','Sharma','Verma','Gupta','Singh','Yadav','Patel','Mishra','Pandey','Dubey','Tiwari','Saxena','Chauhan','Rathore','Thakur','Reddy','Naidu','Nair','Das','Bose','Sen','Ghosh','Joshi','Deshmukh','Kulkarni','Patil','More','Jadhav','Prasad'];
+const GENDERS = ['M','F','O'];
+
+function rand(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+function randomName() {
+  const fn = rand(FIRST), ln = rand(LAST);
+  return { fullName: fn+' '+ln, userName: (fn+'_'+ln+'_'+Math.floor(100+Math.random()*900)).toLowerCase() };
+}
+function randomDob() {
+  return `${1985+Math.floor(Math.random()*21)}-${String(1+Math.floor(Math.random()*12)).padStart(2,'0')}-${String(1+Math.floor(Math.random()*28)).padStart(2,'0')}`;
+}
+
+function extractRef(input) {
+  const m = input.match(/referral\/(\w+)/);
+  return m ? m[1] : input.trim();
+}
+
+function log(el, msg, cls='info') {
+  const d = document.getElementById(el);
+  if (!d) return;
+  const p = document.createElement('p');
+  p.className = cls;
+  p.textContent = msg;
+  d.appendChild(p);
+  d.scrollTop = d.scrollHeight;
+}
+
+function show(id) {
+  document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+async function sendOtp() {
+  const refRaw = document.getElementById('referralInput').value.trim();
+  const mobile = document.getElementById('mobileInput').value.trim();
+  if (!refRaw) return alert('Referral link ya code daalo!');
+  if (!mobile || mobile.length !== 10) return alert('Sahi mobile number daalo (10 digit)!');
+
+  state.mobile = mobile;
+  state.referralCode = extractRef(refRaw);
+
+  const gen = randomName();
+  state.fullName = gen.fullName;
+  state.userName = gen.userName;
+  state.dateOfBirth = randomDob();
+  state.gender = rand(GENDERS);
+
+  document.getElementById('genName').textContent = '👤 '+gen.fullName;
+  document.getElementById('genUsername').textContent = '@'+gen.userName;
+  document.getElementById('genDob').textContent = '🎂 '+state.dateOfBirth;
+  document.getElementById('genGender').textContent = state.gender === 'M' ? '♂️ Male' : state.gender === 'F' ? '♀️ Female' : '⚧ Other';
+  document.getElementById('generatedInfo').style.display = 'block';
+
+  const btn = document.getElementById('btnSendOtp');
+  btn.disabled = true; btn.textContent = '⏳ Sending...';
+  log('log1', `📤 OTP bhej rahe hain ${mobile}...`, 'info');
+
+  try {
+    const r = await fetch('/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile, referralCode: state.referralCode })
+    });
+    const d = await r.json();
+    log('log1', `📨 Response: ${JSON.stringify(d).substring(0,200)}`, 'warn');
+
+    if (d.status === 'success' || d.status === '200' || d.httpStatus === 'OK') {
+      log('log1', '✅ OTP bhej diya gaya! Phone check karo.', 'ok');
+      show('step2');
+      document.getElementById('otpInput').focus();
+    } else {
+      log('log1', `❌ ${d.message || 'Kuch garbar hai'}`, 'err');
+      btn.disabled = false; btn.textContent = '📨 OTP Bhejo';
+    }
+  } catch(e) {
+    log('log1', `❌ Error: ${e.message}`, 'err');
+    btn.disabled = false; btn.textContent = '📨 OTP Bhejo';
+  }
+}
+
+async function verifyOtp() {
+  const otp = document.getElementById('otpInput').value.trim();
+  if (!otp || otp.length < 4) return alert('OTP daalo!');
+
+  const btn = document.getElementById('btnVerifyOtp');
+  btn.disabled = true; btn.textContent = '⏳ Verifying...';
+  log('log2', `🔍 OTP verify ho raha hai...`, 'info');
+
+  try {
+    const r = await fetch('/api/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile: state.mobile, otp, referralCode: state.referralCode })
+    });
+    const d = await r.json();
+    log('log2', `📨 Response: ${JSON.stringify(d).substring(0,300)}`, 'warn');
+
+    if (d.status === 'success' || d.data?.jwtToken) {
+      state.jwtToken = d.data.jwtToken;
+      state.refreshToken = d.data.refreshToken || null;
+      state.referralRewardCode = d.data.referralCode || state.referralCode;
+      log('log2', `✅ OTP verify! JWT mil gaya!`, 'ok');
+      await completeProfile();
+    } else {
+      log('log2', `❌ ${d.message || 'OTP galat hai?'}`, 'err');
+      btn.disabled = false; btn.textContent = '✅ OTP Verify Karein';
+    }
+  } catch(e) {
+    log('log2', `❌ Error: ${e.message}`, 'err');
+    btn.disabled = false; btn.textContent = '✅ OTP Verify Karein';
+  }
+}
+
+async function completeProfile() {
+  log('log2', `👤 Profile bana rahe hain: ${state.fullName} (@${state.userName})`, 'info');
+
+  try {
+    const r = await fetch('/api/complete-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jwtToken: state.jwtToken,
+        fullName: state.fullName,
+        userName: state.userName,
+        referralCode: state.referralCode,
+        dateOfBirth: state.dateOfBirth,
+        gender: state.gender,
+      })
+    });
+    const d = await r.json();
+    log('log2', `📨 ${JSON.stringify(d).substring(0,300)}`, 'warn');
+
+    if (d.status === 'success' || d.data?.id) {
+      log('log2', '✅ Profile complete! Ab referral check karte hain...', 'ok');
+      await checkReferralStatus();
+    } else {
+      log('log2', `❌ ${d.message || 'Profile complete nahi hua'}`, 'err');
+      showResults('partial');
+    }
+  } catch(e) {
+    log('log2', `❌ Error: ${e.message}`, 'err');
+    showResults('partial');
+  }
+}
+
+async function checkReferralStatus() {
+  log('log3', `🔍 Referral check ho raha hai...`, 'info');
+
+  try {
+    const r = await fetch(`/api/check-referral?jwtToken=${state.jwtToken}&referralCode=${state.referralCode}`);
+    const d = await r.json();
+    log('log3', `Referral: ${JSON.stringify(d).substring(0,200)}`, 'warn');
+  } catch(e) {
+    log('log3', `Referral check error: ${e.message}`, 'err');
+  }
+
+  try {
+    const r = await fetch(`/api/reward-summary?jwtToken=${state.jwtToken}`);
+    const d = await r.json();
+    log('log3', `Rewards: ${JSON.stringify(d).substring(0,200)}`, 'warn');
+  } catch(e) {
+    log('log3', `Reward check error: ${e.message}`, 'err');
+  }
+
+  showResults('success');
+}
+
+function showResults(type) {
+  show('step3');
+  const info = document.getElementById('resultInfo');
+  if (type === 'success') {
+    info.innerHTML = `
+      <div style="margin-bottom:8px">✅ <strong>Signup Successful!</strong></div>
+      <div>👤 ${state.fullName}</div>
+      <div>📛 @${state.userName}</div>
+      <div>📱 ${state.mobile}</div>
+      <div>🔗 Referral Code: ${state.referralRewardCode || state.referralCode}</div>
+    `;
+  } else {
+    info.innerHTML = `
+      <div>⚠️ <strong>Signup done but verification pending</strong></div>
+      <div>👤 ${state.fullName}</div>
+      <div>📛 @${state.userName}</div>
+    `;
+  }
+  log('log3', '🎉 Done! Referral signup complete!', 'ok');
+}
+
+function resendOtp() {
+  log('log2', '🔄 Resend OTP feature — same OTP endpoint se naya OTP bhejega', 'info');
+  sendOtp();
+}
+</script>
+</body>
+</html>

@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
 
     // 1. Guest login to get JWT
     const guestRes = await axios.post(BASE + '/user-service/users/guest-user', {
-      deviceToken, deviceType: 'Android',
+      deviceToken, deviceType: 'Android', appVersion: '3.65',
     }, { headers: HEADERS });
 
     const guestData = guestRes.data;
@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
 
     // 2. Send OTP via resent-signup-init (bypasses version check)
     const otpRes = await axios.get(BASE + '/user-service/users/resent-signup-init', {
-      params: { mobile, promo: false },
+      params: { mobile, promo: false, deviceAuthToken },
       headers: { ...HEADERS, Authorization: `Bearer ${jwtToken}` },
     });
 

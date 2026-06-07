@@ -102,6 +102,8 @@ let state = {
   gender: '',
   refreshToken: null,
   referralRewardCode: null,
+  deviceAuthToken: null,
+  deviceToken: null,
 };
 
 const FIRST = ['Ram','Shyam','Amit','Ravi','Vijay','Mohan','Rohan','Arjun','Karan','Rahul','Ankit','Nikhil','Deepak','Manish','Rajesh','Suresh','Ashok','Harish','Kamal','Lalit','Mukesh','Naveen','Pankaj','Ramesh','Sandeep','Tarun','Vikas','Yash','Aakash','Rajat','Sachin','Sunil','Gopal','Lokesh','Umang'];
@@ -171,7 +173,10 @@ async function sendOtp() {
     const d = await r.json();
     log('log1', `📨 Response: ${JSON.stringify(d).substring(0,200)}`, 'warn');
 
-    if (d.status === 'success' || d.status === '200' || d.httpStatus === 'OK') {
+    if (d.status === '200' || d.httpStatus === 'OK') {
+      state.jwtToken = d.jwtToken;
+      state.deviceAuthToken = d.deviceAuthToken;
+      state.deviceToken = d.deviceToken;
       log('log1', '✅ OTP bhej diya gaya! Phone check karo.', 'ok');
       show('step2');
       document.getElementById('otpInput').focus();
@@ -197,15 +202,18 @@ async function verifyOtp() {
     const r = await fetch('/api/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mobile: state.mobile, otp, referralCode: state.referralCode })
+      body: JSON.stringify({
+        mobile: state.mobile, otp, referralCode: state.referralCode,
+        jwtToken: state.jwtToken, deviceAuthToken: state.deviceAuthToken, deviceToken: state.deviceToken,
+      })
     });
     const d = await r.json();
     log('log2', `📨 Response: ${JSON.stringify(d).substring(0,300)}`, 'warn');
 
-    if (d.status === 'success' || d.data?.jwtToken) {
-      state.jwtToken = d.data.jwtToken;
-      state.refreshToken = d.data.refreshToken || null;
-      state.referralRewardCode = d.data.referralCode || state.referralCode;
+    if (d.status === '200' || d.data?.jwtToken) {
+      state.jwtToken = d.data?.jwtToken || state.jwtToken;
+      state.refreshToken = d.data?.refreshToken || null;
+      state.referralRewardCode = d.data?.referralCode || state.referralCode;
       log('log2', `✅ OTP verify! JWT mil gaya!`, 'ok');
       await completeProfile();
     } else {
@@ -232,6 +240,9 @@ async function completeProfile() {
         referralCode: state.referralCode,
         dateOfBirth: state.dateOfBirth,
         gender: state.gender,
+        mobile: state.mobile,
+        otp: otp,
+        deviceAuthToken: state.deviceAuthToken,
       })
     });
     const d = await r.json();

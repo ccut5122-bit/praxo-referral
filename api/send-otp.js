@@ -1,4 +1,5 @@
 const axios = require('axios');
+const crypto = require('crypto');
 
 const BASE = 'https://api.praxoapp.com/api';
 const HEADERS = { Accept: 'application/json', 'User-Agent': 'okhttp/4.12.0', 'Content-Type': 'application/json' };
@@ -11,11 +12,38 @@ module.exports = async (req, res) => {
 
   try {
     const { mobile, referralCode } = req.body;
-    const { data } = await axios.post(BASE + '/user-service/users/signup-init', {
-      mobile, referralCode, countryId: '+91',
-      deviceData: JSON.stringify({ deviceId: require('crypto').randomUUID(), deviceName: 'Pixel 7', osVersion: 'Android 14', appVersion: '3.65' }),
-      latitude: '28.6139', longitude: '77.2090', address: 'India',
+    const deviceToken = crypto.randomUUID();
+
+    // 1. Guest login to get JWT
+    const guestRes = await axios.post(BASE + '/user-service/users/guest-user', {
+      deviceToken, deviceType: 'Android',
     }, { headers: HEADERS });
-    res.json(data);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+
+    const guestData = guestRes.data;
+    if (guestData.status !== '200') {
+      return res.json({ status: 'error', message: 'Guest login failed: ' + (guestData.message || '') });
+    }
+
+    const jwtToken = guestData.data.jwtToken;
+    const deviceAuthToken = guestData.data.deviceAuthToken;
+
+    // 2. Send OTP via resent-signup-init (bypasses version check)
+    const otpRes = await axios.get(BASE + '/user-service/users/resent-signup-init', {
+      params: { mobile, promo: false },
+      headers: { ...HEADERS, Authorization: `Bearer ${jwtToken}` },
+    });
+
+    const otpData = otpRes.data;
+
+    res.json({
+      status: otpData.status === '200' ? '200' : 'error',
+      message: otpData.message || 'OTP sent successfully',
+      jwtToken,
+      deviceAuthToken,
+      deviceToken,
+      referralCode,
+    });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: e.message });
+  }
 };
